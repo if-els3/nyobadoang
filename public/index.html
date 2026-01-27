@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ERROR 404</title>
+  <link rel="stylesheet" href="/css/glitch.css">
+</head>
+
+<body>
+  <div class="glitch-container">
+    <!-- Noise background -->
+    <div class="noise-bg"></div>
+
+    <!-- Scanlines effect -->
+    <div class="scanlines"></div>
+
+    <!-- Color shift overlay -->
+    <div class="color-shift"></div>
+
+    <!-- Hidden "89" clickable element -->
+    <div class="hidden-89" id="secret89" onclick="window.location.href='/notepad/main'">89</div>
+
+    <!-- Random broken text elements -->
+    <div class="broken-text" style="top: 10%; left: 5%;">ERROR: MEMORY LEAK DETECTED</div>
+    <div class="broken-text" style="top: 15%; left: 80%; font-size: 16px;">!!!SYSTEM FAILURE!!!</div>
+    <div class="broken-text" style="top: 25%; left: 30%;">0x7FFE4B2A1C00</div>
+    <div class="broken-text" style="top: 35%; left: 10%; color: #f00;">FATAL EXCEPTION</div>
+    <div class="broken-text" style="top: 40%; left: 70%;">:::CORRUPTED DATA:::</div>
+    <div class="broken-text" style="top: 50%; left: 85%; font-size: 14px;">NULL POINTER</div>
+    <div class="broken-text" style="top: 60%; left: 15%;">SEGV_MAPERR</div>
+    <div class="broken-text" style="top: 65%; left: 45%; color: #ff0;">WARNING: ACCESS DENIED</div>
+    <div class="broken-text" style="top: 75%; left: 60%;">0xDEADBEEF</div>
+    <div class="broken-text" style="top: 80%; left: 20%; font-size: 18px;">CORE DUMPED</div>
+    <div class="broken-text" style="top: 90%; left: 75%;">[!!] PANIC [!!]</div>
+
+    <!-- Error messages -->
+    <div class="error-text" style="top: 5%; left: 50%;">ERR_CONNECTION_REFUSED</div>
+    <div class="error-text" style="top: 55%; left: 5%;">404 NOT FOUND</div>
+    <div class="error-text" style="top: 85%; left: 90%;">TIMEOUT</div>
+
+    <!-- Distorted boxes -->
+    <div class="distorted-box" style="top: 20%; left: 60%; width: 100px; height: 80px;"></div>
+    <div class="distorted-box" style="top: 70%; left: 10%; width: 120px; height: 60px;"></div>
+    <div class="distorted-box" style="top: 45%; left: 40%; width: 90px; height: 90px;"></div>
+
+    <!-- Random trash images (using placeholder data URLs) -->
+    <img class="trash-image" style="top: 12%; left: 25%; animation-delay: -2s;"
+      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f0f' width='100' height='100'/%3E%3C/svg%3E"
+      alt="">
+    <img class="trash-image" style="top: 65%; left: 50%; animation-delay: -5s;"
+      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%230ff' width='100' height='100'/%3E%3C/svg%3E"
+      alt="">
+    <img class="trash-image" style="top: 40%; left: 80%; animation-delay: -7s;"
+      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ff0' width='100' height='100'/%3E%3C/svg%3E"
+      alt="">
+    <img class="trash-image" style="top: 80%; left: 35%; animation-delay: -3s;"
+      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f00' width='100' height='100'/%3E%3C/svg%3E"
+      alt="">
+  </div>
+
+  <script>
+    // Additional random glitch effects
+    setInterval(() => {
+      const colors = ['#0f0', '#f0f', '#0ff', '#f00', '#ff0'];
+      const elements = document.querySelectorAll('.broken-text');
+      elements.forEach(el => {
+        if (Math.random() > 0.7) {
+          el.style.color = colors[Math.floor(Math.random() * colors.length)];
+        }
+      });
+    }, 500);
+
+    // Make the page feel "broken" - random title changes
+    const titles = ['ERROR 404', 'FATAL ERROR', 'SYSTEM FAILURE', 'ACCESS DENIED', 'CORRUPT', '???', 'NULL'];
+    setInterval(() => {
+      document.title = titles[Math.floor(Math.random() * titles.length)];
+    }, 2000);
+  </script>
+</body>
+
+</html>
