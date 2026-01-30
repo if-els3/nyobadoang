@@ -1,256 +1,243 @@
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcrypt');
 
-const DB_PATH = path.join(__dirname, 'notepad.db');
-const db = new sqlite3.Database(DB_PATH);
+// Database configuration
+const isProduction = process.env.NODE_ENV === 'production' || process.env.DATABASE_URL;
+let db;
+let query; // Unified query function
+
+if (isProduction) {
+  // PostgreSQL (Production)
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+  
+  // Wrapper for PG queries
+  query = async (text, params) => {
+    // Convert ? parameters to $1, $2, etc.
+    let paramIndex = 1;
+    const pgText = text.replace(/\?/g, () => `$${paramIndex++}`);
+    const res = await pool.query(pgText, params);
+    return res;
+  };
+
+  db = pool;
+  console.log('Using PostgreSQL database');
+} else {
+  // SQLite (Development)
+  const sqlite3 = require('sqlite3').verbose();
+  const DB_PATH = path.join(__dirname, 'notepad.db');
+  const sqliteDb = new sqlite3.Database(DB_PATH);
+  
+  // Wrapper for SQLite queries to match generic interface
+  query = (text, params) => {
+    return new Promise((resolve, reject) => {
+      // Determine query type
+      const method = text.trim().toUpperCase().startsWith('SELECT') ? 'all' : 'run';
+      
+      sqliteDb[method](text, params, function(err, rows) {
+        if (err) return reject(err);
+        if (this.lastID) rows = { id: this.lastID }; // Simulate INSERT return
+        resolve({ rows: rows || [], rowCount: this.changes || 0 });
+      });
+    });
+  };
+
+  db = sqliteDb;
+  console.log('Using SQLite database');
+}
 
 // Initialize database tables
-function initializeDatabase() {
-  db.serialize(() => {
+async function initializeDatabase() {
+  const schema = [
     // Notepads table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS notepads (
-        id TEXT PRIMARY KEY,
-        content TEXT DEFAULT '',
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        last_editor TEXT
-      )
-    `);
-
+    `CREATE TABLE IF NOT EXISTS notepads (
+      id TEXT PRIMARY KEY,
+      content TEXT DEFAULT '',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      last_editor TEXT
+    )`,
+    
     // Users table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        notepad_id TEXT,
-        username TEXT,
-        password_hash TEXT,
-        is_alternate BOOLEAN DEFAULT 0,
-        FOREIGN KEY (notepad_id) REFERENCES notepads(id),
-        UNIQUE(notepad_id, username)
-      )
-    `);
+    `CREATE TABLE IF NOT EXISTS users (
+      id ${isProduction ? 'SERIAL' : 'INTEGER'} PRIMARY KEY,
+      notepad_id TEXT,
+      username TEXT,
+      password_hash TEXT,
+      is_alternate ${isProduction ? 'BOOLEAN DEFAULT FALSE' : 'BOOLEAN DEFAULT 0'},
+      FOREIGN KEY (notepad_id) REFERENCES notepads(id),
+      UNIQUE(notepad_id, username)
+    )`,
 
     // Feedback table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS feedback (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        notepad_id TEXT,
-        line_number INTEGER,
-        reaction TEXT,
-        comment TEXT,
-        username TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (notepad_id) REFERENCES notepads(id)
-      )
-    `);
+    `CREATE TABLE IF NOT EXISTS feedback (
+      id ${isProduction ? 'SERIAL' : 'INTEGER'} PRIMARY KEY,
+      notepad_id TEXT,
+      line_number INTEGER,
+      reaction TEXT,
+      comment TEXT,
+      username TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (notepad_id) REFERENCES notepads(id)
+    )`,
 
     // Files table
-    db.run(`
-      CREATE TABLE IF NOT EXISTS files (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        notepad_id TEXT,
-        filename TEXT,
-        filepath TEXT,
-        mimetype TEXT,
-        size INTEGER,
-        uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (notepad_id) REFERENCES notepads(id)
-      )
-    `);
+    `CREATE TABLE IF NOT EXISTS files (
+      id ${isProduction ? 'SERIAL' : 'INTEGER'} PRIMARY KEY,
+      notepad_id TEXT,
+      filename TEXT,
+      filepath TEXT,
+      mimetype TEXT,
+      size INTEGER,
+      uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (notepad_id) REFERENCES notepads(id)
+    )`
+  ];
 
+  try {
+    for (const statement of schema) {
+      await query(statement);
+    }
     console.log('Database initialized successfully');
-    
-    // Initialize main notepad with fixed credentials if it doesn't exist
-    initializeMainNotepad();
-  });
+    await initializeMainNotepad();
+  } catch (err) {
+    console.error('Database initialization error:', err);
+  }
 }
 
 // Initialize the main notepad with fixed credentials
 async function initializeMainNotepad() {
   try {
-    // Check if main notepad already exists
     const existing = await getNotepad('main');
     if (existing) {
       console.log('Main notepad already exists');
       return;
     }
 
-    // Create main notepad
-    await new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO notepads (id, content) VALUES (?, ?)',
-        ['main', ''],
-        (err) => (err ? reject(err) : resolve())
-      );
-    });
+    await query('INSERT INTO notepads (id, content) VALUES (?, ?)', ['main', '']);
 
-    // Hash passwords
-    const mainPasswordHash = await bcrypt.hash('idk', 10);
-    const separatePasswordHash = await bcrypt.hash('tes', 10);
+    const mainHash = await bcrypt.hash('idk', 10);
+    const altHash = await bcrypt.hash('tes', 10);
 
-    // Create fixed users for main notepad
     const users = [
-      { username: 'sabs', hash: mainPasswordHash, isAlt: 0 },
-      { username: 'separate', hash: separatePasswordHash, isAlt: 1 }
+      { username: 'sabs', hash: mainHash, isAlt: isProduction ? false : 0 },
+      { username: 'separate', hash: altHash, isAlt: isProduction ? true : 1 }
     ];
 
     for (const user of users) {
-      await new Promise((resolve, reject) => {
-        db.run(
-          'INSERT INTO users (notepad_id, username, password_hash, is_alternate) VALUES (?, ?, ?, ?)',
-          ['main', user.username, user.hash, user.isAlt],
-          (err) => (err ? reject(err) : resolve())
-        );
-      });
+      await query(
+        'INSERT INTO users (notepad_id, username, password_hash, is_alternate) VALUES (?, ?, ?, ?)',
+        ['main', user.username, user.hash, user.isAlt]
+      );
     }
-
     console.log('Main notepad initialized with fixed credentials');
   } catch (err) {
     console.error('Error initializing main notepad:', err);
   }
 }
 
-// Create a new notepad with 4 default users
+// Create a new notepad
 async function createNotepad(notepadId, password, altPassword) {
-  return new Promise((resolve, reject) => {
-    db.run(
-      'INSERT INTO notepads (id, content) VALUES (?, ?)',
-      [notepadId, ''],
-      async (err) => {
-        if (err) return reject(err);
+  try {
+    await query('INSERT INTO notepads (id, content) VALUES (?, ?)', [notepadId, '']);
+    
+    const passwordHash = await bcrypt.hash(password, 10);
+    const altPasswordHash = await bcrypt.hash(altPassword, 10);
 
-        try {
-          const passwordHash = await bcrypt.hash(password, 10);
-          const altPasswordHash = await bcrypt.hash(altPassword, 10);
+    const users = [
+      { username: 'user1', hash: passwordHash, isAlt: isProduction ? false : 0 },
+      { username: 'user2', hash: passwordHash, isAlt: isProduction ? false : 0 },
+      { username: 'demo1', hash: altPasswordHash, isAlt: isProduction ? true : 1 },
+      { username: 'demo2', hash: altPasswordHash, isAlt: isProduction ? true : 1 }
+    ];
 
-          // Create 4 default users
-          const users = [
-            { username: 'user1', hash: passwordHash, isAlt: 0 },
-            { username: 'user2', hash: passwordHash, isAlt: 0 },
-            { username: 'demo1', hash: altPasswordHash, isAlt: 1 },
-            { username: 'demo2', hash: altPasswordHash, isAlt: 1 }
-          ];
-
-          for (const user of users) {
-            await new Promise((res, rej) => {
-              db.run(
-                'INSERT INTO users (notepad_id, username, password_hash, is_alternate) VALUES (?, ?, ?, ?)',
-                [notepadId, user.username, user.hash, user.isAlt],
-                (err) => (err ? rej(err) : res())
-              );
-            });
-          }
-
-          resolve({ id: notepadId, users: users.map(u => u.username) });
-        } catch (err) {
-          reject(err);
-        }
-      }
-    );
-  });
+    for (const user of users) {
+      await query(
+        'INSERT INTO users (notepad_id, username, password_hash, is_alternate) VALUES (?, ?, ?, ?)',
+        [notepadId, user.username, user.hash, user.isAlt]
+      );
+    }
+    return { id: notepadId, users: users.map(u => u.username) };
+  } catch (err) {
+    throw err;
+  }
 }
 
 // Get notepad by ID
-function getNotepad(notepadId) {
-  return new Promise((resolve, reject) => {
-    db.get('SELECT * FROM notepads WHERE id = ?', [notepadId], (err, row) => {
-      if (err) return reject(err);
-      resolve(row);
-    });
-  });
+async function getNotepad(notepadId) {
+  const res = await query('SELECT * FROM notepads WHERE id = ?', [notepadId]);
+  return res.rows[0];
 }
 
 // Update notepad content
-function updateNotepad(notepadId, content, editor) {
-  return new Promise((resolve, reject) => {
-    db.run(
-      'UPDATE notepads SET content = ?, updated_at = CURRENT_TIMESTAMP, last_editor = ? WHERE id = ?',
-      [content, editor, notepadId],
-      (err) => {
-        if (err) return reject(err);
-        resolve();
-      }
-    );
-  });
+async function updateNotepad(notepadId, content, editor) {
+  // Use a hacky fix for UPDATE timestamp syntax differences if needed, but standard SQL usually works
+  await query(
+    'UPDATE notepads SET content = ?, updated_at = CURRENT_TIMESTAMP, last_editor = ? WHERE id = ?',
+    [content, editor, notepadId]
+  );
 }
 
 // Verify user credentials
 async function verifyUser(notepadId, username, password) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      'SELECT * FROM users WHERE notepad_id = ? AND username = ?',
-      [notepadId, username],
-      async (err, row) => {
-        if (err) return reject(err);
-        if (!row) return resolve({ valid: false, isAlternate: false });
+  const res = await query(
+    'SELECT * FROM users WHERE notepad_id = ? AND username = ?',
+    [notepadId, username]
+  );
+  
+  const row = res.rows[0];
+  if (!row) return { valid: false, isAlternate: false };
 
-        const valid = await bcrypt.compare(password, row.password_hash);
-        resolve({ 
-          valid, 
-          isAlternate: row.is_alternate === 1,
-          username: row.username 
-        });
-      }
-    );
-  });
+  const valid = await bcrypt.compare(password, row.password_hash);
+  // Handle different boolean return types (Postgres returns boolean, SQLite returns 1/0)
+  const isAlt = isProduction ? row.is_alternate : (row.is_alternate === 1);
+  
+  return { 
+    valid, 
+    isAlternate: isAlt,
+    username: row.username 
+  };
 }
 
-// Add feedback to a line
-function addFeedback(notepadId, lineNumber, reaction, comment, username) {
-  return new Promise((resolve, reject) => {
-    db.run(
-      'INSERT INTO feedback (notepad_id, line_number, reaction, comment, username) VALUES (?, ?, ?, ?, ?)',
-      [notepadId, lineNumber, reaction, comment, username],
-      function(err) {
-        if (err) return reject(err);
-        resolve({ id: this.lastID });
-      }
-    );
-  });
+// Add feedback
+async function addFeedback(notepadId, lineNumber, reaction, comment, username) {
+  // Postgres requires RETURNING id for insert ID, SQLite uses this.lastID
+  // We'll just execute standard INSERT and rely on wrapper for ID handling if essential, 
+  // but for feedback ID isn't critical.
+  await query(
+    'INSERT INTO feedback (notepad_id, line_number, reaction, comment, username) VALUES (?, ?, ?, ?, ?)',
+    [notepadId, lineNumber, reaction, comment, username]
+  );
 }
 
-// Get feedback for a notepad
-function getFeedback(notepadId) {
-  return new Promise((resolve, reject) => {
-    db.all(
-      'SELECT * FROM feedback WHERE notepad_id = ? ORDER BY line_number, created_at',
-      [notepadId],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows || []);
-      }
-    );
-  });
+// Get feedback
+async function getFeedback(notepadId) {
+  const res = await query(
+    'SELECT * FROM feedback WHERE notepad_id = ? ORDER BY line_number, created_at',
+    [notepadId]
+  );
+  return res.rows;
 }
 
 // Add file metadata
-function addFile(notepadId, filename, filepath, mimetype, size) {
-  return new Promise((resolve, reject) => {
-    db.run(
-      'INSERT INTO files (notepad_id, filename, filepath, mimetype, size) VALUES (?, ?, ?, ?, ?)',
-      [notepadId, filename, filepath, mimetype, size],
-      function(err) {
-        if (err) return reject(err);
-        resolve({ id: this.lastID });
-      }
-    );
-  });
+async function addFile(notepadId, filename, filepath, mimetype, size) {
+  await query(
+    'INSERT INTO files (notepad_id, filename, filepath, mimetype, size) VALUES (?, ?, ?, ?, ?)',
+    [notepadId, filename, filepath, mimetype, size]
+  );
+  // Note: we're not returning ID here to keep it simple across DBs
 }
 
-// Get files for a notepad
-function getFiles(notepadId) {
-  return new Promise((resolve, reject) => {
-    db.all(
-      'SELECT * FROM files WHERE notepad_id = ? ORDER BY uploaded_at DESC',
-      [notepadId],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows || []);
-      }
-    );
-  });
+// Get files
+async function getFiles(notepadId) {
+  const res = await query(
+    'SELECT * FROM files WHERE notepad_id = ? ORDER BY uploaded_at DESC',
+    [notepadId]
+  );
+  return res.rows;
 }
 
 module.exports = {
@@ -262,6 +249,5 @@ module.exports = {
   addFeedback,
   getFeedback,
   addFile,
-  getFiles,
-  db
+  getFiles
 };
