@@ -4,79 +4,174 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ERROR 404</title>
+  <title>...</title>
   <link rel="stylesheet" href="/css/glitch.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a0a;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+      cursor: crosshair;
+    }
+
+    /* Scattered images */
+    .chaos-img {
+      position: absolute;
+      transition: transform 0.3s ease, filter 0.3s ease;
+      cursor: pointer;
+      z-index: 1;
+    }
+
+    .chaos-img:hover {
+      transform: scale(1.1) rotate(5deg);
+      filter: brightness(1.2) contrast(1.1);
+      z-index: 100;
+    }
+
+    .chaos-img img {
+      display: block;
+      object-fit: cover;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Hidden 89 image - slightly more subtle */
+    .secret-entry {
+      opacity: 0.7;
+      filter: grayscale(0.3);
+    }
+
+    .secret-entry:hover {
+      opacity: 1;
+      filter: grayscale(0) drop-shadow(0 0 10px #ff0040);
+    }
+
+    /* Noise overlay */
+    .noise {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.05;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+    }
+
+    /* Random glitch text scattered */
+    .glitch-text {
+      position: absolute;
+      font-family: 'Courier New', monospace;
+      color: rgba(255, 255, 255, 0.15);
+      font-size: 14px;
+      pointer-events: none;
+      user-select: none;
+      z-index: 0;
+    }
+
+    /* Scanlines */
+    .scanlines {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 999;
+      background: repeating-linear-gradient(0deg,
+          transparent,
+          transparent 2px,
+          rgba(0, 0, 0, 0.1) 2px,
+          rgba(0, 0, 0, 0.1) 4px);
+    }
+  </style>
 </head>
 
 <body>
-  <div class="glitch-container">
-    <!-- Noise background -->
-    <div class="noise-bg"></div>
+  <div class="noise"></div>
+  <div class="scanlines"></div>
 
-    <!-- Scanlines effect -->
-    <div class="scanlines"></div>
+  <!-- Scattered Images -->
+  <a href="https://www.google.com" target="_blank" class="chaos-img"
+    style="top: 5%; left: 8%; transform: rotate(-12deg);">
+    <img src="/pic/images2.jpg" style="width: 180px; height: 140px;">
+  </a>
 
-    <!-- Color shift overlay -->
-    <div class="color-shift"></div>
+  <a href="https://www.youtube.com" target="_blank" class="chaos-img"
+    style="top: 15%; left: 55%; transform: rotate(8deg);">
+    <img src="/pic/pexels-anniroenkae-2860810.jpg" style="width: 220px; height: 160px;">
+  </a>
 
-    <!-- Hidden "89" clickable element -->
-    <div class="hidden-89" id="secret89" onclick="window.location.href='/notepad/main'">89</div>
+  <a href="https://www.reddit.com" target="_blank" class="chaos-img"
+    style="top: 35%; left: 3%; transform: rotate(5deg);">
+    <img src="/pic/tes.jpg" style="width: 150px; height: 200px;">
+  </a>
 
-    <!-- Random broken text elements -->
-    <div class="broken-text" style="top: 10%; left: 5%;">ERROR: MEMORY LEAK DETECTED</div>
-    <div class="broken-text" style="top: 15%; left: 80%; font-size: 16px;">!!!SYSTEM FAILURE!!!</div>
-    <div class="broken-text" style="top: 25%; left: 30%;">0x7FFE4B2A1C00</div>
-    <div class="broken-text" style="top: 35%; left: 10%; color: #f00;">FATAL EXCEPTION</div>
-    <div class="broken-text" style="top: 40%; left: 70%;">:::CORRUPTED DATA:::</div>
-    <div class="broken-text" style="top: 50%; left: 85%; font-size: 14px;">NULL POINTER</div>
-    <div class="broken-text" style="top: 60%; left: 15%;">SEGV_MAPERR</div>
-    <div class="broken-text" style="top: 65%; left: 45%; color: #ff0;">WARNING: ACCESS DENIED</div>
-    <div class="broken-text" style="top: 75%; left: 60%;">0xDEADBEEF</div>
-    <div class="broken-text" style="top: 80%; left: 20%; font-size: 18px;">CORE DUMPED</div>
-    <div class="broken-text" style="top: 90%; left: 75%;">[!!] PANIC [!!]</div>
+  <a href="https://www.twitter.com" target="_blank" class="chaos-img"
+    style="top: 8%; left: 78%; transform: rotate(-20deg);">
+    <img src="/pic/tes2.jpg" style="width: 160px; height: 120px;">
+  </a>
 
-    <!-- Error messages -->
-    <div class="error-text" style="top: 5%; left: 50%;">ERR_CONNECTION_REFUSED</div>
-    <div class="error-text" style="top: 55%; left: 5%;">404 NOT FOUND</div>
-    <div class="error-text" style="top: 85%; left: 90%;">TIMEOUT</div>
+  <a href="https://www.wikipedia.org" target="_blank" class="chaos-img"
+    style="top: 60%; left: 70%; transform: rotate(15deg);">
+    <img src="/pic/tes3.png" style="width: 200px; height: 150px;">
+  </a>
 
-    <!-- Distorted boxes -->
-    <div class="distorted-box" style="top: 20%; left: 60%; width: 100px; height: 80px;"></div>
-    <div class="distorted-box" style="top: 70%; left: 10%; width: 120px; height: 60px;"></div>
-    <div class="distorted-box" style="top: 45%; left: 40%; width: 90px; height: 90px;"></div>
+  <a href="https://www.github.com" target="_blank" class="chaos-img"
+    style="top: 70%; left: 15%; transform: rotate(-8deg);">
+    <img src="/pic/tes4.png" style="width: 170px; height: 130px;">
+  </a>
 
-    <!-- Random trash images (using placeholder data URLs) -->
-    <img class="trash-image" style="top: 12%; left: 25%; animation-delay: -2s;"
-      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f0f' width='100' height='100'/%3E%3C/svg%3E"
-      alt="">
-    <img class="trash-image" style="top: 65%; left: 50%; animation-delay: -5s;"
-      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%230ff' width='100' height='100'/%3E%3C/svg%3E"
-      alt="">
-    <img class="trash-image" style="top: 40%; left: 80%; animation-delay: -7s;"
-      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23ff0' width='100' height='100'/%3E%3C/svg%3E"
-      alt="">
-    <img class="trash-image" style="top: 80%; left: 35%; animation-delay: -3s;"
-      src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Crect fill='%23f00' width='100' height='100'/%3E%3C/svg%3E"
-      alt="">
-  </div>
+  <a href="https://www.stackoverflow.com" target="_blank" class="chaos-img"
+    style="top: 25%; left: 30%; transform: rotate(3deg);">
+    <img src="/pic/tes5.jpg" style="width: 140px; height: 180px;">
+  </a>
+
+  <a href="https://www.spotify.com" target="_blank" class="chaos-img"
+    style="top: 80%; left: 50%; transform: rotate(-5deg);">
+    <img src="/pic/Untitled.jpg" style="width: 190px; height: 140px;">
+  </a>
+
+  <a href="https://www.instagram.com" target="_blank" class="chaos-img"
+    style="top: 50%; left: 45%; transform: rotate(10deg);">
+    <img src="/pic/images3.jpg" style="width: 160px; height: 160px;">
+  </a>
+
+  <!-- SECRET 89 ENTRY - Links to main notepad -->
+  <a href="/notepad/main" class="chaos-img secret-entry" style="top: 42%; left: 22%; transform: rotate(-3deg);">
+    <img src="/pic/89.png" style="width: 130px; height: 100px;">
+  </a>
+
+  <!-- Random glitch text scattered -->
+  <span class="glitch-text" style="top: 12%; left: 42%;">ERROR_0x4F2</span>
+  <span class="glitch-text" style="top: 67%; left: 38%;">NULL_POINTER</span>
+  <span class="glitch-text" style="top: 33%; left: 85%;">UNDEFINED</span>
+  <span class="glitch-text" style="top: 88%; left: 12%;">FATAL_EXCEPTION</span>
+  <span class="glitch-text" style="top: 22%; left: 65%;">MEMORY_LEAK</span>
+  <span class="glitch-text" style="top: 55%; left: 8%;">SEGFAULT</span>
+  <span class="glitch-text" style="top: 78%; left: 75%;">0xDEADBEEF</span>
+  <span class="glitch-text" style="top: 45%; left: 92%;">STACK_OVERFLOW</span>
 
   <script>
-    // Additional random glitch effects
-    setInterval(() => {
-      const colors = ['#0f0', '#f0f', '#0ff', '#f00', '#ff0'];
-      const elements = document.querySelectorAll('.broken-text');
-      elements.forEach(el => {
-        if (Math.random() > 0.7) {
-          el.style.color = colors[Math.floor(Math.random() * colors.length)];
-        }
-      });
-    }, 500);
+    // Add slight random movement on mouse move for parallax effect
+    document.addEventListener('mousemove', (e) => {
+      const imgs = document.querySelectorAll('.chaos-img');
+      const x = (e.clientX / window.innerWidth - 0.5) * 10;
+      const y = (e.clientY / window.innerHeight - 0.5) * 10;
 
-    // Make the page feel "broken" - random title changes
-    const titles = ['ERROR 404', 'FATAL ERROR', 'SYSTEM FAILURE', 'ACCESS DENIED', 'CORRUPT', '???', 'NULL'];
-    setInterval(() => {
-      document.title = titles[Math.floor(Math.random() * titles.length)];
-    }, 2000);
+      imgs.forEach((img, i) => {
+        const depth = (i % 3 + 1) * 0.5;
+        img.style.marginLeft = x * depth + 'px';
+        img.style.marginTop = y * depth + 'px';
+      });
+    });
   </script>
 </body>
 

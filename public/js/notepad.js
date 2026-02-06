@@ -103,7 +103,8 @@ function initializeSocket() {
 
   socket.on('content-update', (data) => {
     if (data.editor !== currentUsername) {
-      editor.innerHTML = escapeHtml(data.content);
+      // Content is trusted (sanitized by server/editor logic) and needs to render HTML
+      editor.innerHTML = data.content;
       updateStats();
       updateLineNumbers();
       updateTimestamp(data.timestamp);
@@ -122,7 +123,7 @@ async function loadNotepad() {
     const data = await response.json();
 
     if (data.success) {
-      editor.innerHTML = escapeHtml(data.notepad.content);
+      editor.innerHTML = data.notepad.content;
       updateStats();
       updateLineNumbers();
       
@@ -246,20 +247,22 @@ function updateLineNumbers() {
   lineNumbers.textContent = lineNumbersHtml;
 }
 
-// Update timestamp - Full date/time format
+// Update timestamp - Full date/time format in Bangkok timezone
 function updateTimestamp(isoString) {
   const date = new Date(isoString);
   
-  // Format: "Jan 27, 2026, 10:54 AM"
+  // Format with Bangkok timezone (UTC+7): "Feb 6, 2026, 21:12"
   const options = {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Bangkok' // UTC+7
   };
   
-  const formatted = date.toLocaleDateString('en-US', options);
+  const formatted = date.toLocaleString('en-US', options);
   timestamp.textContent = formatted;
 }
 
@@ -321,10 +324,37 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
     if (data.success) {
       displayFile(data.file);
       
-      // If it's an image, insert into editor
-      if (data.file.mimetype.startsWith('image/')) {
-        const imgTag = `\n![${data.file.filename}](${data.file.url})\n`;
-        editor.innerText += imgTag;
+      // Insert media element directly into editor
+      const mimetype = data.file.mimetype;
+      let mediaElement;
+      
+      if (mimetype.startsWith('image/')) {
+        mediaElement = document.createElement('img');
+        mediaElement.src = data.file.url;
+        mediaElement.alt = data.file.filename;
+        mediaElement.style.maxWidth = '100%';
+        mediaElement.style.display = 'block';
+        mediaElement.style.margin = '10px 0';
+      } else if (mimetype.startsWith('video/')) {
+        mediaElement = document.createElement('video');
+        mediaElement.src = data.file.url;
+        mediaElement.controls = true;
+        mediaElement.style.maxWidth = '100%';
+        mediaElement.style.display = 'block';
+        mediaElement.style.margin = '10px 0';
+      } else if (mimetype.startsWith('audio/')) {
+        mediaElement = document.createElement('audio');
+        mediaElement.src = data.file.url;
+        mediaElement.controls = true;
+        mediaElement.style.display = 'block';
+        mediaElement.style.margin = '10px 0';
+      }
+      
+      if (mediaElement) {
+        // Wrap media in container with delete button
+        const wrapper = createMediaWrapper(mediaElement);
+        editor.appendChild(wrapper);
+        editor.appendChild(document.createElement('br')); // Add line break
         saveContent();
       }
     }
@@ -465,12 +495,7 @@ if (themeToggle) {
   themeToggle.addEventListener('click', toggleTheme);
 }
 
-// Utility function to escape HTML
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
+// Utility function removed (was escapeHtml)
 
 // Close modals on outside click
 feedbackModal.addEventListener('click', (e) => {
@@ -505,6 +530,77 @@ updateStats();
 updateLineNumbers();
 
 // ==================== ENHANCED FEATURES ====================
+
+// Create media wrapper with delete button
+function createMediaWrapper(mediaElement) {
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'relative';
+  wrapper.style.display = 'inline-block';
+  wrapper.style.maxWidth = '100%';
+  wrapper.style.margin = '10px 0';
+  wrapper.className = 'media-wrapper';
+  
+  // Create delete button
+  const deleteBtn = document.createElement('button');
+  deleteBtn.innerHTML = '×';
+  deleteBtn.className = 'media-delete-btn';
+  deleteBtn.style.cssText = `
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    border: 2px solid white;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 10;
+    line-height: 1;
+    padding: 0;
+  `;
+  
+  // Show delete button on hover
+  wrapper.addEventListener('mouseenter', () => {
+    deleteBtn.style.display = 'flex';
+  });
+  
+  wrapper.addEventListener('mouseleave', () => {
+    deleteBtn.style.display = 'none';
+  });
+  
+  // Delete functionality
+  deleteBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (confirm('Delete this media?')) {
+      wrapper.remove();
+      saveContent();
+    }
+  });
+  
+  // Hover effect for delete button
+  deleteBtn.addEventListener('mouseenter', () => {
+    deleteBtn.style.background = 'rgba(220, 38, 38, 1)';
+    deleteBtn.style.transform = 'scale(1.1)';
+  });
+  
+  deleteBtn.addEventListener('mouseleave', () => {
+    deleteBtn.style.background = 'rgba(239, 68, 68, 0.9)';
+    deleteBtn.style.transform = 'scale(1)';
+  });
+  
+  wrapper.appendChild(mediaElement);
+  wrapper.appendChild(deleteBtn);
+  
+  return wrapper;
+}
 
 // Screenshot Paste Handler
 editor.addEventListener('paste', async (e) => {
@@ -541,15 +637,18 @@ editor.addEventListener('paste', async (e) => {
           img.style.margin = '10px 0';
           img.alt = data.file.filename;
           
+          // Wrap with delete button
+          const wrapper = createMediaWrapper(img);
+          
           // Insert at cursor position
           const selection = window.getSelection();
           if (selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             range.deleteContents();
-            range.insertNode(img);
+            range.insertNode(wrapper);
             range.collapse(false);
           } else {
-            editor.appendChild(img);
+            editor.appendChild(wrapper);
           }
           
           saveContent();
@@ -632,22 +731,25 @@ function insertMediaElement(url) {
   }
   
   if (mediaEl) {
+    // Wrap media with delete button
+    const wrapper = createMediaWrapper(mediaEl);
+    
     // Insert at cursor position
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
       range.deleteContents();
-      range.insertNode(mediaEl);
+      range.insertNode(wrapper);
       
       // Add line break after media
       const br = document.createElement('br');
-      mediaEl.after(br);
+      wrapper.after(br);
       range.setStartAfter(br);
       range.collapse(true);
       selection.removeAllRanges();
       selection.addRange(range);
     } else {
-      editor.appendChild(mediaEl);
+      editor.appendChild(wrapper);
     }
     
     saveContent();
