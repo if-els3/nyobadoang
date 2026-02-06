@@ -30,6 +30,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
+app.use('/pic', express.static('pic'));
 
 app.use(session({
   secret: 'collaborative-notepad-secret-key',
@@ -278,7 +279,7 @@ io.on('connection', (socket) => {
     console.log(`User ${socket.id} joined notepad ${notepadId}`);
   });
 
-  socket.on('content-change', async (data) => {
+  socket.on('content-change', async (data, callback) => {
     const { notepadId, content, username } = data;
     
     try {
@@ -290,8 +291,16 @@ io.on('connection', (socket) => {
         editor: username,
         timestamp: new Date().toISOString()
       });
+      
+      // Send acknowledgment back to sender
+      if (callback) {
+        callback({ success: true });
+      }
     } catch (error) {
       console.error('Error updating content:', error);
+      if (callback) {
+        callback({ success: false, error: error.message });
+      }
     }
   });
 
