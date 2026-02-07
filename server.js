@@ -32,11 +32,29 @@ app.use(express.static('public'));
 app.use('/uploads', express.static('uploads'));
 app.use('/pic', express.static('pic'));
 
+// Configure session store
+let sessionStore;
+if (process.env.NODE_ENV === 'production') {
+  const pgSession = require('connect-pg-simple')(session);
+  const { db } = require('./database');
+  console.log('Using PostgreSQL session store');
+  
+  sessionStore = new pgSession({
+    pool: db, // Connection pool
+    tableName: 'session',   // Use specified table name
+    createTableIfMissing: true // Automatically create table
+  });
+}
+
 app.use(session({
-  secret: 'collaborative-notepad-secret-key',
+  store: sessionStore, // undefined in dev (defaults to MemoryStore)
+  secret: process.env.SESSION_SECRET || 'collaborative-notepad-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  }
 }));
 
 // Configure multer for file uploads
