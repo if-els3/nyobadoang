@@ -260,5 +260,6 @@ module.exports = {
   addFeedback,
   getFeedback,
   addFile,
-  getFiles
+  getFiles,
+  db
 };
