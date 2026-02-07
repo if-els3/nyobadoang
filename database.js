@@ -109,6 +109,12 @@ async function initializeDatabase() {
   ];
 
   try {
+    // FIX: Force using user-specific schema instead of 'public' which might be read-only
+    if (isProduction) {
+      await query('CREATE SCHEMA IF NOT EXISTS AUTHORIZATION CURRENT_USER');
+      await query('SET search_path TO "$user", public');
+    }
+
     for (const statement of schema) {
       await query(statement);
     }
