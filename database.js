@@ -9,9 +9,20 @@ let query; // Unified query function
 if (isProduction) {
   // PostgreSQL (Production)
   const { Pool } = require('pg');
+  
+  // Fix for DigitalOcean SSL "self-signed certificate" error
+  // We explicitly strip 'sslmode=require' from the connection string because it forces strict verification
+  // which fails with DigitalOcean's self-signed certs.
+  let connectionString = process.env.DATABASE_URL;
+  if (connectionString && connectionString.includes('?')) {
+    connectionString = connectionString.split('?')[0];
+  }
+
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    connectionString: connectionString,
+    ssl: {
+      rejectUnauthorized: false
+    }
   });
   
   // Wrapper for PG queries
