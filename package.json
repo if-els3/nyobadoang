@@ -16,14 +16,16 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.6.1",
     "bcrypt": "^5.1.1",
-    "multer": "^1.4.5-lts.1",
+    "body-parser": "^1.20.2",
+    "connect-pg-simple": "^10.0.0",
+    "express": "^4.18.2",
     "express-session": "^1.17.3",
     "marked": "^12.0.0",
-    "body-parser": "^1.20.2",
+    "multer": "^1.4.5-lts.1",
     "nanoid": "^3.3.7",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "socket.io": "^4.6.1",
+    "sqlite3": "^5.1.6"
   }
 }
